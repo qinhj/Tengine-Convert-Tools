@@ -530,7 +530,8 @@ bool OnnxSerializer::LoadNode(StaticGraph* graph, StaticNode* node, const onnx::
 {
     std::vector<std::string> tensor_name_list;
     bool repeat_name_flag = false;
-    
+
+    LOG_DEBUG() << node->name << "  input size: " << onnx_node.input_size() << "\n";
     for(int i = 0; i < onnx_node.input_size(); i++)
     {
         const std::string& input_name = onnx_node.input(i);
@@ -541,7 +542,9 @@ bool OnnxSerializer::LoadNode(StaticGraph* graph, StaticNode* node, const onnx::
         StaticTensor* tensor = FindTensor(graph, input_name);
         StaticTensor* new_tensor = nullptr;
         std::string onnx_tensor_name = input_name;
+        //printf("[LoadNode] node %s, tensor %s, type: %s\n", node->name.c_str(), tensor->name.c_str(), typeid(StaticTensor) == typeid(*tensor) ? "Static" : "StaticConst");
         if(node_name[tensor->name] != 0){
+            LOG_DEBUG() << "[LoadNode] tensor dims: " << tensor->dims.size() << "\n";
             if(tensor->dims.size() == 1){
                 if(tensor->mem_size == 0){
                     continue;
@@ -588,11 +591,13 @@ bool OnnxSerializer::LoadNode(StaticGraph* graph, StaticNode* node, const onnx::
             node_name[tensor->name] = node_name[tensor->name] + 1;
         }
         else
-        {
+        {   /* 0 == node_name[tensor->name], i.e. tensor not found */
             AddNodeInputTensor(node, tensor);
             node_name[tensor->name] = node_name[tensor->name] + 1;
         }
     }
+
+    LOG_DEBUG() << node->name << " output size: " << onnx_node.output_size() << "\n";
     for (int i = 0; i < onnx_node.output_size(); i++)
     {
         const std::string& onnx_op_name = onnx_node.op_type();
@@ -621,8 +626,11 @@ bool OnnxSerializer::LoadGraph(onnx::ModelProto& model, StaticGraph* graph)
 
     LoadConstTensor(graph, onnx_graph);
     CreateInputNode(graph, onnx_graph);
+    LOG_INFO() << "[LoadGraph] node size: " << onnx_graph.node_size() << "\n";
     
     int i;
+
+    /* check if exist not supported op */
     std::vector<std::string> no_supported_op;
     for (i = 0; i < onnx_graph.node_size(); i++)
     {
@@ -656,6 +664,7 @@ bool OnnxSerializer::LoadGraph(onnx::ModelProto& model, StaticGraph* graph)
         return false;
     }
 
+    /* check if exist unsupported op */
     for (int i = 0; i < onnx_graph.node_size(); i++)
     {
         const onnx::NodeProto& onnx_node = onnx_graph.node(i);
@@ -695,10 +704,13 @@ bool OnnxSerializer::LoadGraph(onnx::ModelProto& model, StaticGraph* graph)
         return false;
     }
     
+    /* load graph node one by one */
     for (i = 0; i < onnx_graph.node_size(); i++)
     {
         const onnx::NodeProto& onnx_node = onnx_graph.node(i);
         const std::string& onnx_op_name = onnx_node.op_type();
+        LOG_DEBUG() << "[LoadGraph] onnx op[" << i << "] name: " << onnx_op_name << "\n";
+
         if (onnx_op_name == "Constant")
             continue;
 
@@ -1392,6 +1404,7 @@ static bool LoadOnnxSlice(StaticGraph* graph, StaticNode* node, const onnx::Node
     param.axis = 0;
     param.begin = 0;
     param.end = -1;
+
     if (onnx_node.input_size() == 1)
     {
         for (int k = 0; k < onnx_node.attribute_size(); k++)

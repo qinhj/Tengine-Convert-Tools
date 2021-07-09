@@ -405,6 +405,7 @@ StaticTensor* CreateStaticTensor(StaticGraph* graph, const std::string& name)
     tensor_ptr->name = name;
     tensor_ptr->type = kVarTensor;
     graph->tensor_list.push_back(tensor_ptr);
+    LOG_DEBUG() << "[CreateStaticTensor] name: " << name << "\n";
 
     return tensor_ptr.get();
 }
@@ -472,6 +473,7 @@ StaticTensor* CreateStaticConstTensor(StaticGraph* graph, const std::string& nam
     graph->tensor_list.push_back(tensor_ptr);
 
     graph->const_tensor_map[name] = tensor_ptr;
+    LOG_DEBUG() << "[CreateStaticConstTensor] name: " << name << "\n";
 
     return dynamic_cast<StaticTensor*>(tensor_ptr.get());
 }
